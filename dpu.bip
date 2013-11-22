@@ -1,0 +1,53 @@
+model dpu
+    port type intPort(int a)
+    port type int2Port(int a, int b)
+
+    connector type SyncData(intPort writer, int2Port reader)
+        define writer reader
+        data int newData
+        on writer reader
+            up 	{ 
+	newData = writer.a; 
+	}
+            down	 { 
+	reader.a = reader.a + 1; 
+	reader.b = newData; 
+	}
+    end
+
+    atomic type Writer
+        data int a = 10
+        export port intPort minus(a)
+
+        place IDLE 
+        initial to IDLE
+        on minus from IDLE to IDLE do {
+	a = a - 1;
+	}
+    end
+    
+    atomic type Reader
+        data int a = 0
+        data int b = 0
+   
+        export port int2Port sync(a, b)
+    
+        place IDLE
+        initial to IDLE
+        on sync from IDLE to IDLE provided a < 200 do {
+    a = a + 2;
+    }
+    end
+
+    compound type Model
+        component Writer    writer
+        component Reader    reader
+
+        connector SyncData syncData(writer.minus, reader.sync)
+    end
+
+    component Model t
+    
+    INVARSPEC !(writer.place == IDLE) | writer.a > 0
+
+end
